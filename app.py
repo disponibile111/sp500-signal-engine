@@ -27,23 +27,43 @@ def compute_rsi(series, period=14):
     return 100 - (100 / (1 + rs))
 
 def get_data(ticker):
-    df = yf.download(ticker, period="6mo", interval="1d", progress=False)
+
+    df = yf.download(
+        ticker,
+        period="6mo",
+        interval="1d",
+        auto_adjust=True,
+        progress=False
+    )
+
     if df.empty:
         return None
 
-    df["SMA20"] = df["Close"].rolling(20).mean()
-    df["SMA50"] = df["Close"].rolling(50).mean()
-    df["RSI14"] = compute_rsi(df["Close"], 14)
+    # elimina eventuale MultiIndex
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
 
-    df["vol_sma20"] = df["Volume"].rolling(20).mean()
-    df["RV20"] = df["Volume"] / df["vol_sma20"]
+    close = df["Close"]
+    open_ = df["Open"]
+    high = df["High"]
+    low = df["Low"]
+    volume = df["Volume"]
 
-    df["gap"] = df["Open"] / df["Close"].shift(1) - 1
-    df["oc_ret"] = (df["Close"] - df["Open"]) / df["Open"]
+    df["SMA20"] = close.rolling(20).mean()
+    df["SMA50"] = close.rolling(50).mean()
 
-    df["range"] = (df["High"] - df["Low"]) / df["Open"]
+    df["RSI14"] = compute_rsi(close, 14)
 
-    df["close_pos"] = (df["Close"] - df["Low"]) / (df["High"] - df["Low"])
+    df["vol_sma20"] = volume.rolling(20).mean()
+    df["RV20"] = volume / df["vol_sma20"]
+
+    df["gap"] = open_ / close.shift(1) - 1
+
+    df["oc_ret"] = (close - open_) / open_
+
+    df["range"] = (high - low) / open_
+
+    df["close_pos"] = (close - low) / (high - low)
 
     return df
 

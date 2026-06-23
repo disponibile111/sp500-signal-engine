@@ -16,6 +16,7 @@ def compute_rsi(series, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
+@st.cache_data(ttl=3600)
 def get_data(ticker):
     try:
         df = yf.download(

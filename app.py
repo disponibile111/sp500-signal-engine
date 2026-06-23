@@ -11,7 +11,7 @@ st.set_page_config(page_title="S&P500 Signal Engine", layout="wide")
 # -----------------------------
 TICKERS = [
     "AAPL", "MSFT", "NVDA", "AMZN", "META",
-    "TSLA", "GOOGL", "GOOG", "BRK-B", "JPM",
+    "TSLA", "GOOGL", "GOOG", "JPM",
     "UNH", "XOM", "LLY", "V", "MA",
     "AVGO", "HD", "COST", "MRK", "ABBV"
 ]

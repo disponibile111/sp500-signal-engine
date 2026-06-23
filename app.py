@@ -28,44 +28,53 @@ def compute_rsi(series, period=14):
 
 def get_data(ticker):
 
-    df = yf.download(
-        ticker,
-        period="6mo",
-        interval="1d",
-        auto_adjust=True,
-        progress=False
-    )
+    try:
 
-    if df.empty:
+        df = yf.download(
+            ticker,
+            period="6mo",
+            interval="1d",
+            auto_adjust=True,
+            progress=False
+        )
+
+        if df.empty:
+            return None
+
+        # elimina eventuale MultiIndex
+        if hasattr(df.columns, "nlevels") and df.columns.nlevels > 1:
+            df.columns = df.columns.get_level_values(0)
+
+        df = df.rename(columns=str)
+
+        close = pd.Series(df["Close"]).astype(float)
+        open_ = pd.Series(df["Open"]).astype(float)
+        high = pd.Series(df["High"]).astype(float)
+        low = pd.Series(df["Low"]).astype(float)
+        volume = pd.Series(df["Volume"]).astype(float)
+
+        df["SMA20"] = close.rolling(20).mean()
+        df["SMA50"] = close.rolling(50).mean()
+
+        df["RSI14"] = compute_rsi(close)
+
+        vol_sma20 = volume.rolling(20).mean()
+
+        df["RV20"] = volume.div(vol_sma20)
+
+        df["gap"] = open_.div(close.shift(1)).sub(1)
+
+        df["oc_ret"] = close.sub(open_).div(open_)
+
+        df["range"] = high.sub(low).div(open_)
+
+        df["close_pos"] = close.sub(low).div(high.sub(low))
+
+        return df
+
+    except Exception as e:
+        st.error(f"{ticker}: {e}")
         return None
-
-    # elimina eventuale MultiIndex
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-
-    close = df["Close"]
-    open_ = df["Open"]
-    high = df["High"]
-    low = df["Low"]
-    volume = df["Volume"]
-
-    df["SMA20"] = close.rolling(20).mean()
-    df["SMA50"] = close.rolling(50).mean()
-
-    df["RSI14"] = compute_rsi(close, 14)
-
-    df["vol_sma20"] = volume.rolling(20).mean()
-    df["RV20"] = volume / df["vol_sma20"]
-
-    df["gap"] = open_ / close.shift(1) - 1
-
-    df["oc_ret"] = (close - open_) / open_
-
-    df["range"] = (high - low) / open_
-
-    df["close_pos"] = (close - low) / (high - low)
-
-    return df
 
 # -----------------------------
 # SCORE SEMPLICE VERSION 1

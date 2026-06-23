@@ -6,10 +6,7 @@ import numpy as np
 st.set_page_config(page_title="S&P500 Signal Engine", layout="wide")
 
 TICKERS = [
-    "AAPL", "MSFT", "NVDA", "AMZN", "META",
-    "TSLA", "GOOGL", "GOOG", "JPM",
-    "UNH", "XOM", "LLY", "V", "MA",
-    "AVGO", "HD", "COST", "MRK", "ABBV"
+    "AAPL", "MSFT"
 ]
 
 def compute_rsi(series, period=14):
@@ -29,30 +26,43 @@ def get_data(ticker):
             progress=False
         )
 
-        if df.empty:
+        if df is None or df.empty:
             return None
 
+        # Se yfinance restituisce MultiIndex, lo appiattiamo
         if hasattr(df.columns, "nlevels") and df.columns.nlevels > 1:
             df.columns = df.columns.get_level_values(0)
 
-        df = df.rename(columns=str)
+        df.columns = [str(c) for c in df.columns]
 
-        close = pd.Series(df["Close"]).astype(float)
-        open_ = pd.Series(df["Open"]).astype(float)
-        high = pd.Series(df["High"]).astype(float)
-        low = pd.Series(df["Low"]).astype(float)
-        volume = pd.Series(df["Volume"]).astype(float)
+        required_cols = ["Open", "High", "Low", "Close", "Volume"]
+        if not all(col in df.columns for col in required_cols):
+            st.error(f"{ticker}: colonne mancanti nei dati scaricati")
+            return None
+
+        close = df["Close"].astype(float)
+        open_ = df["Open"].astype(float)
+        high = df["High"].astype(float)
+        low = df["Low"].astype(float)
+        volume = df["Volume"].astype(float)
 
         df["SMA20"] = close.rolling(20).mean()
         df["SMA50"] = close.rolling(50).mean()
         df["RSI14"] = compute_rsi(close)
 
         vol_sma20 = volume.rolling(20).mean()
-        df["RV20"] = volume.div(vol_sma20)
-        df["gap"] = open_.div(close.shift(1)).sub(1)
-        df["oc_ret"] = close.sub(open_).div(open_)
-        df["range"] = high.sub(low).div(open_)
-        df["close_pos"] = close.sub(low).div(high.sub(low))
+        df["RV20"] = volume / vol_sma20
+
+        prev_close = close.shift(1)
+        df["gap"] = (open_ / prev_close) - 1
+        df["oc_ret"] = (close - open_) / open_
+        df["range"] = (high - low) / open_
+
+        hl_diff = (high - low).replace(0, np.nan)
+        df["close_pos"] = (close - low) / hl_diff
+
+        # pulizia finale minima
+        df = df.replace([np.inf, -np.inf], np.nan)
 
         return df
 
